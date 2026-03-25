@@ -1,11 +1,13 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
+import pandas as pd
 
 st.set_page_config(page_title="Quicksewa Nepal", page_icon="🇳🇵")
 
 # Google Sheet URL
 sheet_url = "https://docs.google.com/spreadsheets/d/1Hve4wc-kttehLAXPKugaf6RJ6C6EHQwB4BmfaBzi55w/edit#gid=0"
 
+# Connection setup
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 st.title("Quicksewa Nepal 🛠️")
@@ -18,15 +20,8 @@ if choice == "Home":
 
 elif choice == "Find a Worker":
     st.header("उपलब्ध कामदारहरू")
-    try:
-        # यहाँ हामी सिधै सिट पढ्छौँ
-        df = conn.read(spreadsheet=sheet_url)
-        if not df.empty:
-            st.dataframe(df)
-        else:
-            st.info("अहिले कुनै कामदार उपलब्ध छैनन्।")
-    except Exception as e:
-        st.error(f"डाटा लोड हुन सकेन। कृपया Secrets चेक गर्नुहोस्।")
+    df = conn.read(spreadsheet=sheet_url, usecols=[0,1,2])
+    st.dataframe(df)
 
 elif choice == "Register as Worker":
     st.header("कामदार दर्ता गर्नुहोस्")
@@ -39,14 +34,16 @@ elif choice == "Register as Worker":
         if submitted:
             if name and phone:
                 try:
-                    # नयाँ डाटा थप्ने
-                    existing_df = conn.read(spreadsheet=sheet_url)
-                    import pandas as pd
-                    new_row = pd.DataFrame([{"name": name, "skill": skill, "phone": phone}])
-                    updated_df = pd.concat([existing_df, new_row], ignore_index=True)
+                    # पहिले भएको डाटा पढ्ने
+                    existing_data = conn.read(spreadsheet=sheet_url)
+                    # नयाँ लाइन थप्ने
+                    new_entry = pd.DataFrame([{"name": name, "skill": skill, "phone": phone}])
+                    updated_df = pd.concat([existing_data, new_entry], ignore_index=True)
+                    # सिट अपडेट गर्ने
                     conn.update(spreadsheet=sheet_url, data=updated_df)
-                    st.success(f"बधाई छ {name}! तपाईंको विवरण सुरक्षित भयो।")
-                except:
-                    st.error("डाटा सेभ गर्न सकिएन। पर्मिसन चेक गर्नुहोस्।")
+                    st.success(f"बधाई छ {name}! दर्ता सफल भयो।")
+                    st.balloons()
+                except Exception as e:
+                    st.error("पर्मिसन मिलेन। कृपया Google Sheet मा 'Editor' बनाउनुहोस्।")
             else:
-                st.warning("कृपया सबै विवरण भर्नुहोस्।")
+                st.warning("सबै खाली ठाउँ भर्नुहोस्।")
