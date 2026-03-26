@@ -1,40 +1,47 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
+import pandas as pd
 
-# Title
-st.title("Quicksewa Nepal - Worker Registration")
+st.set_page_config(page_title="Quicksewa Nepal", layout="centered")
 
-# १. सिधै कनेक्सन गर्ने (केही कन्फिगर गर्नु पर्दैन)
-# यसले तपाइँको Secrets मा भएको [connections.gsheets] सेक्सन सिधै तान्छ
+st.title("🛠️ Quicksewa Nepal")
+st.subheader("कामदार दर्ता फारम")
+
+# १. सिधै कनेक्सन गर्ने
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# २. तपाईंको Google Sheet को URL (यहाँ तपाईंको शीटको लिंक हाल्नुहोस्)
-# नोट: यो लिंक कोडमै छ, त्यसैले Secrets मा हाल्नु पर्दैन
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1Xy_तपाईंको_सिट_आइडी_यहाँ_हुन्छ/edit#gid=0"
+# २. तपाईंको Google Sheet को URL (यसलाई नफेर्नुहोला)
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1vOBy3S_lC7z38n_6kCj9Y2fGqX6E0wKx2L_K1P2lP_0/edit#gid=0"
 
-# फारम (Form) को डिजाइन
 with st.form("registration_form"):
-    name = st.text_input("पूर्ण नाम")
-    skill = st.selectbox("तपाईंको सीप", ["Electrician", "Plumber", "Painter", "Carpenter"])
-    phone = st.text_input("सम्पर्क नम्बर (WhatsApp/Phone)")
+    full_name = st.text_input("पूर्ण नाम")
+    skill = st.selectbox("तपाईंको सीप", ["Electrician", "Plumber", "Carpenter", "Painter", "Mason"])
+    contact_no = st.text_input("सम्पर्क नम्बर (WhatsApp/Phone)")
     
     submit_button = st.form_submit_button(label="दर्ता गर्नुहोस्")
 
     if submit_button:
-        if name and phone:
+        if full_name and contact_no:
             try:
-                # सिधै डेटा थप्ने (Append गर्ने)
-                data_to_add = [name, skill, phone]
+                # नयाँ डाटा तयार गर्ने
+                new_data = pd.DataFrame([{
+                    "पूर्ण नाम": full_name,
+                    "तपाईंको सीप": skill,
+                    "सम्पर्क नम्बर": contact_no
+                }])
                 
-                # पुरानो डेटा पढ्ने
-                existing_data = conn.read(spreadsheet=SHEET_URL, usecols=[0,1,2])
+                # Sheet बाट पुरानो डाटा तान्ने
+                existing_data = conn.read(spreadsheet=SHEET_URL)
                 
-                # नयाँ डेटा सिटमा पठाउने
-                conn.create(spreadsheet=SHEET_URL, data=data_to_add)
+                # नयाँ र पुरानो डाटा मिसाउने
+                updated_df = pd.concat([existing_data, new_data], ignore_index=True)
                 
-                st.success("डाटा सफलतापूर्वक सेभ भयो!")
+                # सिटमा अपडेट गर्ने
+                conn.update(spreadsheet=SHEET_URL, data=updated_df)
+                
+                st.success("✅ बधाई छ! तपाईंको विवरण सफलतापूर्वक दर्ता भयो।")
+                st.balloons()
             except Exception as e:
-                st.error(f"त्रुटि भयो: {e}")
-                st.info("कृपया पक्का गर्नुहोस् कि तपाईंले Service Account Email लाई Sheet मा 'Editor' अनुमति दिनुभएको छ।")
+                st.error("डाटा सेभ हुन सकेन। कृपया तपाईंको Google Sheet मा 'Editor' पर्मिसन भएको पक्का गर्नुहोस्।")
         else:
-            st.warning("कृपया सबै विवरण भर्नुहोस्।")
+            st.warning("कृपया सबै खाली ठाउँहरू भर्नुहोस्।")
