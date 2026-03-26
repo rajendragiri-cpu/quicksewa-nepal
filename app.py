@@ -1,54 +1,40 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
-import pandas as pd
 
-# Page setup
-st.set_page_config(page_title="Quicksewa Nepal", page_icon="🛠️")
+# Title
+st.title("Quicksewa Nepal - Worker Registration")
 
-# Google Sheet URL
-sheet_url = "https://docs.google.com/spreadsheets/d/1Hve4wc-kttehLAXPKugaf6RJ6C6EHQwB4BmfaBzi55w/edit#gid=0"
-
-# Connection
+# १. सिधै कनेक्सन गर्ने (केही कन्फिगर गर्नु पर्दैन)
+# यसले तपाइँको Secrets मा भएको [connections.gsheets] सेक्सन सिधै तान्छ
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-st.title("Quicksewa Nepal 🇳🇵")
-menu = ["Home", "Find a Worker", "Register as Worker"]
-choice = st.sidebar.selectbox("Menu", menu)
+# २. तपाईंको Google Sheet को URL (यहाँ तपाईंको शीटको लिंक हाल्नुहोस्)
+# नोट: यो लिंक कोडमै छ, त्यसैले Secrets मा हाल्नु पर्दैन
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1Xy_तपाईंको_सिट_आइडी_यहाँ_हुन्छ/edit#gid=0"
 
-if choice == "Home":
-    st.subheader("नेपालकै भरपर्दो सेवा बजारमा स्वागत छ!")
-    st.write("हामी दक्ष कामदार र सेवाग्राहीलाई एउटै प्लेटफर्ममा जोड्छौं।")
+# फारम (Form) को डिजाइन
+with st.form("registration_form"):
+    name = st.text_input("पूर्ण नाम")
+    skill = st.selectbox("तपाईंको सीप", ["Electrician", "Plumber", "Painter", "Carpenter"])
+    phone = st.text_input("सम्पर्क नम्बर (WhatsApp/Phone)")
+    
+    submit_button = st.form_submit_button(label="दर्ता गर्नुहोस्")
 
-elif choice == "Find a Worker":
-    st.header("उपलब्ध कामदारहरू")
-    try:
-        df = conn.read(spreadsheet=sheet_url, ttl=0)
-        st.dataframe(df)
-    except:
-        st.info("अहिले कुनै पनि कामदार दर्ता भएका छैनन्।")
-
-elif choice == "Register as Worker":
-    st.header("कामदार दर्ता गर्नुहोस्")
-    with st.form("worker_form"):
-        name = st.text_input("पूर्ण नाम")
-        skill = st.selectbox("तपाईंको सीप", ["Electrician", "Plumber", "Driver", "Cleaner", "Painter"])
-        phone = st.text_input("सम्पर्क नम्बर (WhatsApp/Phone)")
-        submitted = st.form_submit_button("दर्ता गर्नुहोस्")
-        
-        if submitted:
-            if name and phone:
-                try:
-                    # पहिलेको डाटा पढ्ने
-                    existing_data = conn.read(spreadsheet=sheet_url, ttl=0)
-                    # नयाँ डाटा बनाउने
-                    new_entry = pd.DataFrame([{"name": name, "skill": skill, "phone": phone}])
-                    # डाटा जोड्ने
-                    updated_df = pd.concat([existing_data, new_entry], ignore_index=True)
-                    # अपडेट गर्ने
-                    conn.update(spreadsheet=sheet_url, data=updated_df)
-                    st.success(f"बधाई छ {name}! तपाईंको विवरण सुरक्षित भयो।")
-                    st.balloons()
-                except Exception as e:
-                    st.error("डाटा सेभ हुन सकेन। कृपया तपाईंको Google Sheet मा 'Editor' पर्मिसन भएको पक्का गर्नुहोस्।")
-            else:
-                st.warning("कृपया सबै विवरण भर्नुहोस्।")
+    if submit_button:
+        if name and phone:
+            try:
+                # सिधै डेटा थप्ने (Append गर्ने)
+                data_to_add = [name, skill, phone]
+                
+                # पुरानो डेटा पढ्ने
+                existing_data = conn.read(spreadsheet=SHEET_URL, usecols=[0,1,2])
+                
+                # नयाँ डेटा सिटमा पठाउने
+                conn.create(spreadsheet=SHEET_URL, data=data_to_add)
+                
+                st.success("डाटा सफलतापूर्वक सेभ भयो!")
+            except Exception as e:
+                st.error(f"त्रुटि भयो: {e}")
+                st.info("कृपया पक्का गर्नुहोस् कि तपाईंले Service Account Email लाई Sheet मा 'Editor' अनुमति दिनुभएको छ।")
+        else:
+            st.warning("कृपया सबै विवरण भर्नुहोस्।")
